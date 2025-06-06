@@ -687,6 +687,27 @@ test = ["Pillow", "contourpy[test-no-images]", "matplotlib"]
 test-no-images = ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-xdist", "wurlitzer"]
 
 [[package]]
+name = "control"
+version = "0.10.1"
+description = "Python Control Systems Library"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "control-0.10.1-py3-none-any.whl", hash = "sha256:ff4c7620addb7edcafa24f712b9cad61dcdf50a40018f16b8dcb0b26c7774524"},
+    {file = "control-0.10.1.tar.gz", hash = "sha256:3bba142c9274d896efda8c9a21aaf61dd38d673d6d40714a7989d143428e738c"},
+]
+
+[package.dependencies]
+matplotlib = ">=3.6"
+numpy = ">=1.23"
+scipy = ">=1.8"
+
+[package.extras]
+cvxopt = ["cvxopt (>=1.2.0)"]
+slycot = ["slycot (>=0.4.0)"]
+test = ["pytest", "pytest-timeout", "ruff"]
+
+[[package]]
 name = "coverage"
 version = "7.6.8"
 description = "Code coverage measurement for Python"
@@ -3735,4 +3756,8 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10,<3.13"
+<<<<<<< HEAD
 content-hash = "5e8bb084a911b98692b3e032cdf630f6859033012b2ce0bb5690d6dceb9cb735"
+=======
+content-hash = "9ced3459b9ade0e064dfbbbdd6aabbb1c222a96d91af5829fc5ffee28fcd55dc"
+>>>>>>> a847f916aaed8f88dfc28e6d27794fce2aacd4ee
