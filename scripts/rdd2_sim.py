@@ -226,7 +226,8 @@ class Simulator(Node):
         #     )
         # ).reshape(-1)
 
-        DECLANATION_IND = -6.666/180*ca.pi # Declanation of WL Indiana
+        #DECLANATION_IND = -6.666/180*ca.pi # Declanation of WL Indiana
+        DECLANATION_IND = 0.0 # Declanation for sim 
 
         temp_q = np.array(
             self.eqs["attitude_estimator"](
@@ -234,7 +235,6 @@ class Simulator(Node):
             ),
             dtype=float,
         )
-        print(self.y_mag)
 
         self.est_x[6] = temp_q[0]
         self.est_x[7] = temp_q[1]
@@ -300,20 +300,25 @@ class Simulator(Node):
         # mode handling
         # ---------------------------------------------------------------------
         if self.input_mode == "acro":
-            [omega_sp, self.thrust] = self.eqs["input_acro"](
+            #print("acro")
+            [self.omega_sp, self.thrust] = self.eqs["input_acro"](
                 thrust_trim, thrust_delta, self.input_aetr
             )
 
         elif self.input_mode == "auto_level":
+            #print("auto_level")
             [self.q_sp, self.thrust] = self.eqs["input_auto_level"](
                 thrust_trim,
                 thrust_delta,
                 self.input_aetr,
                 self.q,
             )
-            omega_sp = self.eqs["attitude_control"](k_p_att, self.q, self.q_sp)
+            #print(self.q_sp)
+            self.omega_sp = self.eqs["attitude_control"](k_p_att, self.q, self.q_sp)
+            #print(omega_sp)
 
         elif self.bezier_msg is None or self.input_mode == "velocity":
+            #print("velocity")
             reset_position = False
             [
                 self.psi_sp,
@@ -364,7 +369,7 @@ class Simulator(Node):
                     self.q_sp,
                 )
                 # position control: world frame
-                [self.thrust, self.z_i, self.omega_sp, u_a] = self.eqs["se23_control"](
+                [self.thrust, self.z_i, self.omega_sp, self.q_sp] = self.eqs["se23_control"](
                     thrust_trim,
                     k_p_att,
                     zeta,
@@ -374,7 +379,7 @@ class Simulator(Node):
                     self.dt,
                 )
                 # attitude control: q_br
-                # omega_sp = self.eqs["so3_attitude_control"](k_p_att, self.q, self.q_sp)
+                self.omega_sp = self.eqs["so3_attitude_control"](k_p_att, self.q, self.q_sp)
                 # print(omega_sp)
         elif self.input_mode == "bezier":
             time_start_nsec = (
@@ -459,7 +464,7 @@ class Simulator(Node):
 
         else:
             self.get_logger().info("unhandled mode: %s" % self.input_mode)
-            omega_sp = np.zeros(3, dtype=float)
+            self.omega_sp = np.zeros(3, dtype=float)
             self.thrust = 0
 
         # ---------------------------------------------------------------------
@@ -493,6 +498,8 @@ class Simulator(Node):
         self.u, Fp, Fm, Ft, Msat = self.eqs["f_alloc"](
             F_max, l, CM, CT, self.thrust, M_sp
         )
+        # print("u", self.u)
+        # print("thrust", self.thrust)
         # self.get_logger().info('M: %s' % M)
         # self.get_logger().info('u: %s' % self.u)
 
@@ -680,11 +687,11 @@ class Simulator(Node):
         self.integrate_simulation()
         self.publish_state()
         if self.use_estimator:
-            # print("updating")
+            #print("updating")
             self.update_estimator()
         else:
             self.update_fake_estimator()
-            # print("wrong")
+            #print("wrong")
         self.update_controller()
 
     def get_state_by_name(self, name):
