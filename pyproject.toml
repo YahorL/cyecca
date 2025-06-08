@@ -21,14 +21,11 @@ protobuf = "^3.20.3"
 synapse-pb = "^0.2.10"
 delimited-protobuf = "^1.0.0"
 pandas = "^2.2.2"
-<<<<<<< HEAD
 jupyter = "^1.1.1"
 nbmake = "^1.5.4"
 black = "24.10.0"
 pytest = "^8.3.4"
-=======
 control = "^0.10.1"
->>>>>>> a847f916aaed8f88dfc28e6d27794fce2aacd4ee
 
 [tool.poetry.group.dev.dependencies]
 black = {extras = ["jupyter"], version = "^24.10.0"}
