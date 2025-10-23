@@ -354,6 +354,47 @@ def derive_eulerB321_to_quat():
     return {"eulerB321_to_quat": f_eulerB321_to_quat}
 
 
+def derive_bezier_integral():
+    # Symbolic variables
+    P = ca.SX.sym("P", 1, 8)  # Control points
+    T = ca.SX.sym("T")        # Duration
+    t_start = ca.SX.sym("t_start")  # Start time
+    t_end = ca.SX.sym("t_end")      # End time
+
+    P_int = ca.SX.zeros(9)
+    P_int[0] = 0
+    
+    for i in range(1, 9):
+        P_int[i] = ca.sum2(P[:, :i])
+    
+    P_int = P_int * T / 8
+    
+    beta_start = t_start / T
+    beta_end = t_end / T
+    
+    integral_start = 0
+    integral_end = 0
+    binomial_coeffs = [1, 8, 28, 56, 70, 56, 28, 8, 1]
+    
+    for i in range(9):
+        integral_start += P_int[i] * ca.SX(binomial_coeffs[i]) * (beta_start**i) * ((1-beta_start)**(8-i))
+        integral_end += P_int[i] * ca.SX(binomial_coeffs[i]) * (beta_end**i) * ((1-beta_end)**(8-i))
+    
+    integral_value = integral_end - integral_start
+
+    result = integral_value / (t_end - t_start)
+    
+    f_integral = ca.Function(
+        "bezier_integral",
+        [P, T, t_start, t_end],
+        [result],
+        ["P", "T", "t_start", "t_end"],
+        ["result"]
+    )
+    
+    return {"bezier_integral": f_integral}
+
+
 def generate_code(eqs: dict, filename, dest_dir: str, **kwargs):
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(exist_ok=True)
@@ -391,6 +432,7 @@ if __name__ == "__main__":
     eqs.update(derive_dcm_to_quat())
     eqs.update(derive_ref())
     eqs.update(derive_multirotor())
+    eqs.update(derive_bezier_integral())
 
     for name, eq in eqs.items():
         print("eq: ", name)
