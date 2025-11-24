@@ -95,6 +95,7 @@ class Simulator(Node):
         self.eqs.update(rdd2.derive_strapdown_ins_propagation())
         self.eqs.update(rdd2.derive_control_allocation())
         self.eqs.update(rdd2.derive_attitude_estimator())
+        self.eqs.update(rdd2.derive_attitude_init())
         self.eqs.update(rdd2.derive_position_correction())
         self.eqs.update(rdd2.derive_common())
         self.eqs.update(rdd2_loglinear.derive_se23_error())
@@ -134,6 +135,11 @@ class Simulator(Node):
         self.omega_sp = np.zeros(3, dtype=float)
         self.thrust = 0.0
 
+        # estimator parameters
+        self.DECLANATION = -4.494167/180*ca.pi
+        self.accel_gain = 0.15
+        self.mag_gain = 0.15
+
         # ----------------------------------------------
         # sim state data
         # ----------------------------------------------
@@ -153,10 +159,19 @@ class Simulator(Node):
         self.de0 = np.zeros(3, dtype=float)  # deriv of att error (for lowpass)
 
         # estimator data
-        self.use_estimator = False  # if false, will use sim state instead for control
+        self.use_estimator = True  # if false, will use sim state instead for control
         self.P = 1e-2 * np.array([1, 0, 0, 1, 0, 1], dtype=float)  # state covariance
         self.Q = 1e-9 * np.array([1, 0, 0, 1, 0, 1], dtype=float)  # process noise
         self.P_temp = 1e-2 * np.eye(6, dtype=float)
+
+        #Derive initial quaternion based on mag and accel
+        self.y_mag = np.array(self.model["g_mag"](self.x, self.u, self.p, np.random.randn(3), self.dt)).reshape(-1)
+        self.y_accel = np.array(self.model["g_accel"](self.x, self.u, self.p, np.random.randn(3), self.dt)).reshape(-1)
+        self.q = np.array(self.eqs["attitude_init"](self.y_mag, self.y_accel, self.DECLANATION), dtype=float) # quaternion
+        self.est_x[6] = self.q[0]
+        self.est_x[7] = self.q[1]
+        self.est_x[8] = self.q[2] 
+        self.est_x[9] = self.q[3]
 
         # velocity control data
         self.psi_sp = 0.0  # world yaw orientation set point
@@ -177,8 +192,8 @@ class Simulator(Node):
         self.q_ref = np.array([1, 0, 0, 0], dtype=float)  # reference quaternion
 
         # setpoints
-        self.q_sp = np.array([1, 0, 0, 0], dtype=float)  # quaternion setpoint
-        self.qc_sp = np.array([1, 0, 0, 0], dtype=float)  # quaternion camera setpoint (based on psi)
+        self.q_sp = self.q  # quaternion setpoint
+        self.qc_sp = self.q   # quaternion camera setpoint (based on psi)
         self.z_i = 0  # z error integrator
 
         # start main loop on timer
@@ -204,6 +219,10 @@ class Simulator(Node):
             self.est_x, self.y_accel, self.y_gyro, self.get_param_by_name("g"), self.dt
         )
         self.est_x = np.array(res, dtype=float).reshape(-1)
+        self.q[0] = self.est_x[6]
+        self.q[1] = self.est_x[7]
+        self.q[2] = self.est_x[8]
+        self.q[3] = self.est_x[9]
 
         X1, P1 = self.eqs["position_correction"](self.est_x, self.y_gps_pos, self.dt, self.P_temp)
         self.est_x = np.array(X1, dtype=float).reshape(-1)
@@ -215,33 +234,27 @@ class Simulator(Node):
         #     )
         # ).reshape(-1)
 
-        DECLANATION = 0
-        accel_gain = 0.04
-        mag_gain = 0.04
 
-        # new code
-        temp_q, P_new = self.eqs["attitude_estimator"](
+        self.q, self.P  = self.eqs["attitude_estimator"](
             self.q,
             self.y_mag,
-            DECLANATION,
+            self.DECLANATION,
             self.y_gyro,
             self.y_accel,
-            accel_gain,
-            mag_gain,
+            self.accel_gain,
+            self.mag_gain,
             self.dt,
             self.P,
         )
-        temp_q = np.array(temp_q, dtype=float)
-        # self.P = np.array(P_new, dtype=float)
+        self.q = np.array(self.q, dtype=float).reshape(-1)
+        self.P = np.array(self.P, dtype=float).reshape(-1)
 
-        self.est_x[6] = temp_q[0]
-        self.est_x[7] = temp_q[1]
-        self.est_x[8] = temp_q[2]
-        self.est_x[9] = temp_q[3]
-        self.q = np.array(
-            [self.est_x[6], self.est_x[7], self.est_x[8], self.est_x[9]],
-            dtype=float,
-        )
+
+        self.est_x[6] = self.q[0]
+        self.est_x[7] = self.q[1]
+        self.est_x[8] = self.q[2]
+        self.est_x[9] = self.q[3]
+
         self.omega = self.y_gyro
         self.pw = np.array([self.est_x[0], self.est_x[1], self.est_x[2]], dtype=float)
         self.vw = np.array([self.est_x[3], self.est_x[4], self.est_x[5]], dtype=float)
