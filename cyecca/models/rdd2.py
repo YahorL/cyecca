@@ -16,6 +16,7 @@ m = 2.0  # mass of vehicle
 # thrust_delta = 0.9*m*g # thrust delta from trim
 # thrust_trim = m*g # thrust trim
 deg2rad = np.pi / 180  # degree to radian
+earth_radius = 6378137.0  # WGS84 radius [m]
 
 # attitude rate loop
 rollpitch_rate_max = 60  # deg/s
@@ -634,29 +635,24 @@ def derive_strapdown_ins_propagation():
 
 
 def derive_position_correction():
-    ## Initilaizing measurments
+    """
+    Position correction
+    """
+    est_x = ca.SX.sym("est", 10)  # [x,y,z,u,v,w,q0,q1,q2,q3]
+    z0 = ca.SX.sym("gps_init", 3)
     z = ca.SX.sym("gps", 3)
-
-    # Initial GPS location
-    lat0 = 40.4237       # latitude [deg]
-    lon0 = -86.9212      # longitude [deg]
-    alt0 = 190.0         # altitude [m]
-    earth_radius = 6378137.0  # WGS84 radius [m]
-
-    # Convert z to local tangent plane
-    x_local = (z[1] - lon0) * (np.pi / 180) * earth_radius * np.cos(lat0 * np.pi / 180)  # East
-    y_local = (z[0] - lat0) * (np.pi / 180) * earth_radius                              # North
-    z_local = z[2] - alt0                                                               # Up
-
-    z_local_plane = ca.vertcat(x_local, y_local, z_local)
-
-
     dt = ca.SX.sym("dt", 1)
     P = ca.SX.sym("P", 6, 6)
 
     # Initialize state
-    est_x = ca.SX.sym("est", 10)  # [x,y,z,u,v,w,q0,q1,q2,q3]
     x0 = est_x[0:6]  # [x,y,z,u,v,w]
+
+    # Convert z to local tangent plane
+    x_local = (z[1] - z0[1]) * (np.pi / 180) * earth_radius * np.cos(z0[0] * np.pi / 180)  # East
+    y_local = (z[0] - z0[0]) * (np.pi / 180) * earth_radius                              # North
+    z_local = z[2] - z0[2]                                                               # Up
+
+    z_local_plane = ca.vertcat(x_local, y_local, z_local)
 
     # Define the state transition matrix (A)
     A = ca.SX.eye(6)
@@ -692,6 +688,7 @@ def derive_position_correction():
         "position_correction",
         [
             est_x,
+            z0,
             z,
             dt,
             P,
@@ -699,6 +696,7 @@ def derive_position_correction():
         [x_new, P_new],
         [
             "est_x",
+            "gps_init",
             "gps",
             "dt",
             "P",

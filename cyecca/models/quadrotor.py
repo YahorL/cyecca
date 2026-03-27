@@ -281,7 +281,7 @@ def derive_model():
         ["y"],
     )
 
-    # Magnetic vector calculations fpr West Lafayette, IN
+    # Magnetic vector calculations fpr West Lafayette, IN, USA
     # Source: https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml#igrfwmm
 
     STRENGTH = 0.521113 # magnetic strength

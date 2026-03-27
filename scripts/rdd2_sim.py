@@ -167,26 +167,21 @@ class Simulator(Node):
         self.y_gps_local = np.array([0, 0, 0])
         self.gps_random_walk = np.array([0,0,0])
 
-        # Define GPS reference origin (West Lafayette, IN)
-        self.lat0 = 40.4237       # latitude [deg]
-        self.lon0 = -86.9212      # longitude [deg]
-        self.alt0 = 190.0         # altitude [m]
-        self.earth_radius = 6378137.0  # WGS84 radius [m]
-
         # GPS reference origin (West Lafayette, IN)
         self.lat0 = 40.4237       # latitude [deg]
         self.lon0 = -86.9212      # longitude [deg]
         self.alt0 = 190.0         # altitude [m]
         self.earth_radius = 6378137.0  # WGS84 radius [m]
+        self.lla0 = np.array([self.lat0, self.lon0, self.alt0])
 
         # Initialize current LLA values to reference
         self.lat = self.lat0
         self.lon = self.lon0
         self.alt = self.alt0
-        self.lla = np.array([self.lat, self.lon, self.alt])
+        self.lla = self.lla0
         
         # estimator data
-        self.use_estimator = True  # if false, will use sim state instead for control
+        self.use_estimator = True  # if false, will use sim state for control instead
         self.P = 1e-2 * np.array([1, 0, 0, 1, 0, 1], dtype=float)  # state covariance
         self.Q = 1e-9 * np.array([1, 0, 0, 1, 0, 1], dtype=float)  # process noise
         self.P_temp = 1e-2 * np.eye(6, dtype=float)
@@ -252,7 +247,7 @@ class Simulator(Node):
         self.q[3] = self.est_x[9]
 
         X1, P1 = self.eqs["position_correction"](
-            self.est_x, self.lla, self.dt, self.P_temp
+            self.est_x, self.lla0, self.lla, self.dt, self.P_temp
         )
 
         # print(X1)
